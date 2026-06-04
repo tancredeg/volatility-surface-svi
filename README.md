@@ -2,6 +2,8 @@
 
 End-to-end pipeline from raw SPY option chain data to a calibrated, arbitrage-verified implied volatility surface using the Gatheral (2004) SVI parametrisation.
 
+![SSVI volatility surface — SPY](figures/fig6_ssvi_surface_3d.png)
+
 ---
 
 ## Repository Structure
@@ -221,6 +223,8 @@ Values below come from the run of 2026-06-04 on SPY (spot 752.18). They
 illustrate what the pipeline produces; absolute numbers will differ with
 market conditions on later runs.
 
+![SVI smile fits per maturity](figures/fig1_svi_smile_fits.png)
+
 ### ATM Term Structure
 
 | Maturity | SVI ATM Vol | SSVI ATM Vol | SSVI θ_t |
@@ -266,6 +270,8 @@ SSVI: 0 calendar violations on |k| ≤ 0.35, 4/4 butterfly PASS. The per-slice
 SVI surface had 152 calendar violations from linear parameter interpolation —
 SSVI eliminates them by construction.
 
+![SSVI vs per-slice SVI](figures/fig5_ssvi_vs_svi.png)
+
 ### Approximate Skew Metrics
 
 These use **fixed moneyness `m = ±0.10`** — not true 25-delta strikes. True 25Δ RR requires solving `N(d₂(K)) = 0.25` for `K`; a desk implementation would use the delta-strike mapping.
@@ -276,6 +282,8 @@ These use **fixed moneyness `m = ±0.10`** — not true 25-delta strikes. True 2
 | 57d      |  −9.6%              | +3.86%              |
 | 88d      |  −7.9%              | +3.89%              |
 | 179d     |  −6.9%              | +1.89%              |
+
+![Skew and butterfly across maturities](figures/fig4_skew_analysis.png)
 
 Negative risk reversal across all maturities confirms equity put premium
 (market pricing tail risk asymmetrically downward). Skew flattens with
