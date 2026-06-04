@@ -17,4 +17,3 @@ env/
 # regenerated figures. Remove the next two lines if you want to version a
 # snapshot of results in the repo for recruiters to see without running it.
 data/*.csv
-figures/*.png
