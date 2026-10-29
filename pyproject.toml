@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "volsurf"
+version = "1.0.0"
+description = "Arbitrage-free SVI/SSVI implied volatility surfaces, Dupire local volatility and barrier pricing on SPY options."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Tancrède Geli" }]
+dependencies = [
+    "numpy==2.2.6",
+    "scipy==1.15.3",
+    "pandas==2.2.3",
+    "matplotlib==3.10.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.5",
+    "pytest-cov==6.1.1",
+    "ruff==0.11.13",
+    "mypy==1.15.0",
+    "nbclient==0.10.2",
+    "nbformat==5.10.4",
+    "ipykernel==6.29.5",
+]
+crosscheck = ["QuantLib==1.44"]
+fetch = ["yfinance==0.2.65"]
+
+[project.urls]
+Repository = "https://github.com/tancredeg/volatility-surface-svi"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["volsurf"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-include = ["*.ipynb"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "NPY", "SIM", "C4"]
+ignore = ["E741", "E501"]  # line length is enforced by `ruff format`; long strings are allowed
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B018"]
+"notebooks/*" = ["E402"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src"]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+ignore_missing_imports = true

@@ -2,18 +2,32 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
+build/
+dist/
 .venv/
 venv/
 env/
 .ipynb_checkpoints/
+
+# Tooling caches
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # OS / editor
 .DS_Store
 .vscode/
 .idea/
 
-# Project artefacts
-# Keep the code and README; do NOT commit large/volatile data dumps or
-# regenerated figures. Remove the next two lines if you want to version a
-# snapshot of results in the repo for recruiters to see without running it.
+# Data
+# Raw vendor quotes (Yahoo Finance) are NOT redistributed: their terms forbid it.
+# Keep them locally in data/raw/; only their metadata and SHA-256 are versioned
+# (data/snapshots/). The bundled synthetic sample (data/sample/) is versioned.
+data/raw/
 data/*.csv
+
+# Scratch outputs of the audit scripts
+out/

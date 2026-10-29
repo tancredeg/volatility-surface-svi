@@ -1,0 +1,27 @@
+{
+  "underlying": "SPY",
+  "description": "SPY listed options, 4 expiries (2026-07-02, 2026-07-31, 2026-08-31, 2026-11-30), downloaded from Yahoo Finance during the US session of 2026-06-03. Raw quotes are not redistributed (Yahoo Finance terms); this file pins everything else needed to reproduce the results from that exact chain.",
+  "chain_file": "data/raw/spy_chains_20260603.csv",
+  "chain_sha256": "48d647bfccdbdb5ffe3962c6af0139a311241aa7ccc068c153fa93ebd88debf5",
+  "valuation_time_utc": "2026-06-03T14:35:53Z",
+  "valuation_time_rule": "Latest lastTradeDate in the chain; Yahoo quotes are delayed, so the true quote time is uncertain by about 15-20 minutes (effect on T below 0.1% at 29 days).",
+  "rate": {
+    "rate_cc": 0.036974,
+    "source": "FRED DTB3, 3-month Treasury bill secondary market rate, discount basis, 2026-06-03: 3.63%",
+    "url": "https://fred.stlouisfed.org/series/DTB3",
+    "conversion": "r = -ln(1 - d*91/360) * 365/91, continuously compounded ACT/365"
+  },
+  "dividends": [
+    {
+      "ex_date": "2026-06-18",
+      "amount": 1.903516,
+      "source": "SSGA 2026 SPDR distribution schedule (dates); amount as published by SSGA / Wall Street Horizon"
+    },
+    {
+      "ex_date": "2026-09-18",
+      "amount": 1.888834,
+      "source": "SSGA 2026 SPDR distribution schedule (dates); amount as published by SSGA / Wall Street Horizon"
+    }
+  ],
+  "synthetic": false
+}
