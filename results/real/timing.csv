@@ -1,0 +1,4 @@
+model,slices,median_s,min_s,max_s,median_ms_per_slice,runs
+SVI raw,4,1.81249,1.58882,3.48753,453.123,10
+SVI constrained,4,3.43548,3.05112,5.58919,858.869,10
+SSVI,4,0.0540718,0.0474394,0.0757731,13.5179,10

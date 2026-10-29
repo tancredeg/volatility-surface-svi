@@ -1,0 +1,10 @@
+model,pair,viol_points_supported,viol_points_extrapolated,k_viol_min,k_viol_max,max_crossing_w
+SVI raw,29d->58d,0,0,,,0
+SVI raw,58d->89d,0,0,,,0
+SVI raw,89d->180d,0,1234,0.267,1.5,0.950248
+SVI constrained,29d->58d,0,0,,,0
+SVI constrained,58d->89d,0,0,,,0
+SVI constrained,89d->180d,0,0,,,0
+SSVI,29d->58d,0,0,,,0
+SSVI,58d->89d,0,0,,,0
+SSVI,89d->180d,0,0,,,0
