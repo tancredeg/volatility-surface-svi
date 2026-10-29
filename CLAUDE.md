@@ -33,7 +33,7 @@ Sujet : surface de volatilité implicite SPY, SVI par tranche (Gatheral 2004) vs
 - Tests : `pytest`
 - Lint/format/types : `ruff check .` ; `ruff format .` ; `mypy src`
 - Résultats sur l'échantillon synthétique : `python scripts/run_results.py` ; résultats du README (chaîne brute requise dans `data/raw/`) : `python scripts/run_results.py --snapshot data/snapshots/spy_20260603.json --update-readme`
-- Rejoue du run publié v0 (audit) : `git worktree add ../v0 v0-published` puis `python scripts/audit/reproduce_published_run.py ../v0 data/raw/spy_chains_20260604.csv 2026-06-04 752.18 out/replay_0604`
+- Rejoue du run publié v0 (audit) : `git worktree add ../v0 3519491` puis `python scripts/audit/reproduce_published_run.py ../v0 data/raw/spy_chains_20260604.csv 2026-06-04 752.18 out/replay_0604`
 - Diagnostics d'audit : `python scripts/audit/audit_diagnostics.py data/raw out/diagnostics`
 
 ## Arborescence cible (Phase 1)

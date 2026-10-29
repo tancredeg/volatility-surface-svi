@@ -22,7 +22,7 @@ Décisions prises par défaut (Tancrède a délégué la suite sans arbitrer D1�
 - D3 : **écart au cahier des charges.** Les CGU Yahoo interdisent la redistribution (§2.8, page « data providers ») : les cotations brutes restent locales (`data/raw/`, ignoré par git) et seules leurs métadonnées + SHA-256 sont versionnées (`data/snapshots/`). L'échantillon versionné `data/sample/` est une chaîne synthétique « SPY-like » générée à partir des ajustements réels. Le README publie les chiffres réels ; les 2 commandes reproduisent tout le pipeline sur l'échantillon.
 - D4 : θ_t ancré sur la variance totale ATM de marché ; γ ≤ 1/2 et borne exacte du théorème 4.2 sur η (garantie sans arbitrage à toute maturité, y compris t → 0). Pas d'eSSVI.
 - D5 : produit barrière retenu = put down-and-in (le risque vendu dans un reverse convertible) et call down-and-out, strike 100 %, barrières 75–95 %, échéance 2026-08-31 (89 j), monitoring continu (pont brownien), dividendes cash SPY (18 juin, 18 sept.).
-- D6 : reconstruction en package `volsurf` ; code v0 retiré de `main`, conservé au tag `v0-published`.
+- D6 : reconstruction en package `volsurf` ; code v0 retiré de `main`, toujours accessible au commit `3519491` (historique de `main`).
 
 Fait
 - Phase 1 : package `src/volsurf/` (data, forward, iv, svi, ssvi, arbitrage, localvol, barrier, pipeline, report, plots), `pyproject.toml` épinglé (Python 3.11–3.13), métadonnées de snapshot, `scripts/fetch_data.py` (refuse une chaîne marché fermé), `scripts/make_sample.py`.
@@ -30,7 +30,7 @@ Fait
 - Phase 3 : ruff (lint + format), mypy strict sur `src/`, GitHub Actions (lint + tests 3.11/3.12/3.13), badge.
 - Phase 4 : `scripts/run_results.py` régénère toutes les tables et figures (`results/{real,sample}/`, `figures/{real,sample}/`).
 - Phase 5 : README anglais dans l'ordre imposé, tableaux injectés automatiquement depuis `results/real/tables.md`.
-- Phase 6 : notebook `notebooks/demo.ipynb` exécuté de bout en bout en 17 s, notes de version `docs/release_notes_v1.0.md`, tag `v1.0`.
+- Phase 6 : notebook `notebooks/demo.ipynb` exécuté de bout en bout en 17 s, notes de version `docs/release_notes_v1.0.md`. Tag `v1.0` non publié : le proxy de la session refuse le push de tags (HTTP 403).
 
 Bug trouvé et corrigé pendant la Phase 4 (par exécution, pas par lecture)
 - Le SVI contraint (SLSQP seul) finissait parfois dans un point faisable à 3,2 points de vol de RMSE au lieu de 0,2 : écart-type de la vol ATM 0,44 point sous un bruit de 0,1 point (contre 0,012 en SVI brut). Correctif : départ par continuation de pénalité (moindres carrés pénalisés, λ = 10 → 10⁵) avant SLSQP. Après correctif, sur 50 tirages : écart-type ATM 0,012 point, surcoût des contraintes ≤ 0,062 point, 0 échec. Test de non-régression ajouté.
@@ -44,6 +44,7 @@ Chiffres clés (snapshot réel du 3 juin, `results/real/`)
 
 Reste à faire (hors périmètre ou nécessite Tancrède)
 - Épingler le repo sur le profil GitHub (réglage de profil, non faisable par l'API).
-- Vérifier le passage de la CI sur GitHub (badge) après le push.
+- Créer et pousser le tag `v1.0` depuis le poste local (commandes dans le compte rendu de session), puis éventuellement une Release GitHub avec `docs/release_notes_v1.0.md`.
+- CI : verte sur le commit `f914e37` (lint, tests 3.11/3.12/3.13).
 - Option : eSSVI (ρ dépendant de θ) pour corriger le biais de skew court de SSVI qui borne la précision des prix barrière.
 - Option : si des cotations réelles doivent être versionnées, utiliser une source dont la licence autorise la redistribution (ce n'est pas le cas de Yahoo).

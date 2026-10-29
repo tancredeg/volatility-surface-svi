@@ -1,6 +1,6 @@
 # v1.0 — release notes
 
-Complete rebuild of the v0 pipeline (tag `v0-published`) after the audit in `AUDIT.md`.
+Complete rebuild of the v0 pipeline (commit `3519491`) after the audit in `AUDIT.md`.
 
 ## Data
 * Calibration on two-sided mid quotes only; chains without quotes (market closed) are rejected (`StaleQuotesError`). v0 used stale last-trade prices for 100% of its points.

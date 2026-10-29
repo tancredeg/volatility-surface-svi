@@ -6,7 +6,7 @@
 | Date | 2026-10-13 |
 | Méthode | Lecture intégrale (`iv_surface.py` 2041 l., `ssvi.py` 517 l., `fetch_data.py` 180 l., `README.md`) + exécution réelle du code non modifié sur les deux snapshots |
 | Environnement d'exécution | CPython 3.13.16, numpy 2.5.3, scipy 1.18.1, pandas 3.0.5, Linux |
-| Reproduction de l'audit | Code v0 : tag `v0-published` (commit `3519491`). `git worktree add ../v0 v0-published`, puis `python scripts/audit/reproduce_published_run.py ../v0 data/raw/spy_chains_20260604.csv 2026-06-04 752.18 out/replay_0604` et `python scripts/audit/audit_diagnostics.py data/raw out/diagnostics` (chaînes brutes Yahoo locales, non redistribuées) |
+| Reproduction de l'audit | Code v0 : commit `3519491`. `git worktree add ../v0 3519491`, puis `python scripts/audit/reproduce_published_run.py ../v0 data/raw/spy_chains_20260604.csv 2026-06-04 752.18 out/replay_0604` et `python scripts/audit/audit_diagnostics.py data/raw out/diagnostics` (chaînes brutes Yahoo locales, non redistribuées) |
 
 Chaque chiffre de ce document sort de l'une de ces deux commandes (fichiers `out/replay_0604/replay_results.json`, `out/diagnostics/diagnostics.json`) ou d'une exécution citée explicitement.
 

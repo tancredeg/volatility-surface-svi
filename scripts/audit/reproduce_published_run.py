@@ -6,8 +6,8 @@ README tables, and whether the run is reproducible without network access.
 Usage:
     python scripts/audit/reproduce_published_run.py REPO_DIR CSV_PATH REF_DATE SPOT OUT_DIR
 
-Example, from the repo root (v0 code at tag v0-published; published run: 2026-06-04, spot 752.18):
-    git worktree add ../v0 v0-published
+Example, from the repo root (v0 code = commit 3519491; published run: 2026-06-04, spot 752.18):
+    git worktree add ../v0 3519491
     python scripts/audit/reproduce_published_run.py ../v0 data/raw/spy_chains_20260604.csv 2026-06-04 752.18 out/replay_0604
 
 The repo code calls datetime.date.today() and a live yfinance spot. Both are
