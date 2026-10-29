@@ -1,418 +1,178 @@
-# Implied Volatility Surface — SVI Calibration Pipeline
+# Arbitrage-free implied volatility surfaces on SPY: SVI, SSVI, Dupire local vol and barrier pricing
 
-End-to-end pipeline from raw SPY option chain data to a calibrated, arbitrage-verified implied volatility surface using the Gatheral (2004) SVI parametrisation.
+[![CI](https://github.com/tancredeg/volatility-surface-svi/actions/workflows/ci.yml/badge.svg)](https://github.com/tancredeg/volatility-surface-svi/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-![SSVI volatility surface — SPY](figures/fig6_ssvi_surface_3d.png)
+**Calibrates the implied volatility surface of SPY options (raw SVI, SVI with static no-arbitrage constraints, and SSVI), audits it for butterfly and calendar arbitrage, then derives Dupire local volatility from the arbitrage-free SSVI surface to measure how much a flat-volatility desk misprices barrier options.**
 
----
+Data: one frozen snapshot of listed SPY options on 2026-06-03 (4 expiries, 29 to 180 days, 1,215 quotes), Yahoo Finance.
 
-## Repository Structure
+## Key results
 
-```
-iv-surface-svi/
-├── iv_surface.py          # Per-slice SVI pipeline (clean → IV → SVI → arbitrage)
-├── ssvi.py                # Surface SVI: globally arbitrage-free calibration
-├── fetch_data.py          # Standalone REAL-data extractor (run in VS Code)
-├── requirements.txt       # Pinned dependencies
-├── README.md
-├── LICENSE
-├── .gitignore
-├── data/
-│   └── spy_chains_YYYY-MM-DD.csv   # Written by fetch_data.py (carries spot)
-└── figures/
-    ├── fig0_raw_smiles.png          # Raw IV smiles before SVI fit
-    ├── fig1_svi_smile_fits.png      # Per-slice SVI fit per maturity
-    ├── fig2_svi_surface_3d.png      # 3D SVI surface iv(m, T)
-    ├── fig3_atm_term_structure.png  # ATM term structure: model vs raw
-    ├── fig4_skew_analysis.png       # Approximate RR and butterfly vs maturity
-    ├── fig5_ssvi_vs_svi.png         # SSVI vs per-slice SVI per maturity
-    └── fig6_ssvi_surface_3d.png     # 3D SSVI surface (arbitrage-free)
-```
+<!-- BEGIN:key-results -->
+- **Fit.** On 680 out-of-the-money quotes, constrained (arbitrage-free) SVI has an implied-vol RMSE of 0.09-0.21 vol points per expiry, against 0.06-0.14 for unconstrained SVI and 0.73-1.42 for SSVI. Removing arbitrage costs at most 0.065 vol point per expiry; SSVI's single set of shape parameters for all expiries costs 0.64-1.34.
+- **Arbitrage.** Unconstrained SVI shows butterfly arbitrage (negative density) on 3 of 4 expiries (g(k) as low as -0.44, at k = 0.95 to 1.19) and 1 of 3 pairs of expiries cross in total variance (for k >= 0.27); none of these violations lie inside the quoted strike range (k <= 0.18). The fit looks clean on the data and breaks in the extrapolated wings, which Dupire local vol and every wing-sensitive product use. Constrained SVI and SSVI have no violation, confirmed by two independent checks (Durrleman g and convexity of call prices in strike); the SSVI surface is arbitrage-free at every maturity, not only at the listed ones (gamma <= 1/2).
+- **Speed.** A full surface takes 0.05 s with SSVI, 1.8 s with raw SVI and 3.4 s with constrained SVI (median, one CPU core).
+- **Structuring.** On a down-and-in put expiring in 89 days (strike 100%, barrier 90%), Dupire local vol gives 2.35% of notional against 1.57% for Black-Scholes at the strike vol (15.5%): the flat-vol desk would under-charge the barrier by 0.78% of notional, i.e. overstate a reverse-convertible coupon by about 3.2% per annum. Using the barrier-level vol instead (23.0%) gives 3.56%.
+- **Model check.** The local-vol Monte Carlo reprices the SSVI vanillas within 0.05 vol point (2.3 standard errors at most); SSVI itself is off the market by 1.17 vol point at the 90% strike, which bounds the precision of the barrier prices.
+<!-- END:key-results -->
 
----
+<!-- BEGIN:fit-table -->
+| Expiry | T (days) | Quotes | ATM vol | RMSE SVI raw | RMSE SVI constrained | RMSE SSVI | Half bid-ask |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 2026-07-02 | 29 | 134 | 13.43% | 0.14 | 0.21 | 1.31 | 0.025 |
+| 2026-07-31 | 58 | 217 | 14.40% | 0.06 | 0.12 | 1.38 | 0.019 |
+| 2026-08-31 | 89 | 225 | 15.07% | 0.08 | 0.14 | 1.42 | 0.019 |
+| 2026-11-30 | 180 | 104 | 16.54% | 0.09 | 0.09 | 0.73 | 0.021 |
+<!-- END:fit-table -->
 
-## Installation and Usage
+*Implied-vol RMSE in vol points (one vol point = 0.01 of implied volatility, e.g. 15% to 16%), same loss for every model. Half bid-ask is the median half-width of the quotes, in vol points.*
 
-```bash
-git clone https://github.com/tancredeg/volatility-surface-svi
-cd iv-surface-svi
-pip install -r requirements.txt
+![Smiles and fits](figures/real/smiles.png)
 
-# Step 1 — fetch REAL market data (writes data/spy_chains_<date>.csv)
-python fetch_data.py
+![Barrier prices under local vol and flat vol](figures/real/barrier.png)
 
-# Step 2 — per-slice SVI calibration + arbitrage checks + figures
-python iv_surface.py
+<details>
+<summary><b>Arbitrage audit</b></summary>
 
-# Step 3 — Surface SVI (globally arbitrage-free) + comparison to per-slice SVI
-python ssvi.py
-```
+<!-- BEGIN:arbitrage-table -->
+| Model | Slices with g(k) < 0 | of which inside quoted range | Min g(k) | Negative-density points (price check) | Calendar crossings: quoted / extrapolated (grid points) |
+|---|---:|---:|---:|---:|---:|
+| SVI raw | 3 / 4 | 0 | -0.439 | 2398 | 0 / 1234 |
+| SVI constrained | 0 / 4 | 0 | +0.000 | 0 | 0 / 0 |
+| SSVI | 0 / 4 | 0 | +0.254 | 0 | 0 / 0 |
+<!-- END:arbitrage-table -->
 
-`fetch_data.py` downloads live SPY option chains, runs realness checks (shared
-call/put strikes, plausible strike range, open interest present, no synthetic
-labels), records the underlying spot into the CSV, and writes a dated file to
-`data/`. It never fabricates data: on any failure it exits with a diagnostic.
+Butterfly arbitrage is checked on k = ln(K/F) in [-1.5, 1.5] with Durrleman's g(k) and, independently, with the convexity of Black-76 call prices in strike. Calendar arbitrage is a crossing of total-variance curves between consecutive expiries. Counts are grid points (3,001 points), split between the quoted strike range and the extrapolated wings.
 
-`iv_surface.py` runs the per-slice pipeline. It attempts a live download; if
-that fails it loads the most recent CSV in `data/`. Spot is resolved live, then
-from the CSV's stored spot — never silently defaulted, because a wrong spot
-corrupts the forward and the whole surface. It **refuses** any cached file with
-`synthetic_*` labels.
+![Arbitrage diagnostics](figures/real/arbitrage.png)
+</details>
 
-`ssvi.py` calibrates the Surface SVI parametrisation jointly across maturities,
-verifies the surface is calendar- and butterfly-arbitrage-free, and prints an
-RMSE comparison against the per-slice SVI baseline.
+<details>
+<summary><b>Barrier options: local vol vs flat vol</b></summary>
 
-**Synthetic self-test (opt-in only, never the default):**
-```python
-from iv_surface import run_synthetic_pipeline
-run_synthetic_pipeline()   # tests the calibrator against known SVI params
-```
-The synthetic path exists solely to verify that calibration recovers known
-parameters. Its output is labelled `DATA_SOURCE = synthetic_with_noise` and it
-never writes to `data/`.
+Down-and-in put (DIP, the option an investor sells in a reverse convertible) and down-and-out call (DOC), strike 100% of spot, continuous monitoring, expiry 2026-08-31. Prices in % of spot. Local vol and flat vol use the same Monte-Carlo paths (400,000, antithetic, 4 steps per day, Brownian-bridge correction) and the same dividend-aware forward curve. "Coupon effect" converts the DIP gap into the annual coupon a reverse convertible would overstate.
 
----
+"DIP BS barrier vol" is the closed form at the implied vol of the barrier level, with the continuous dividend yield equivalent to the forward; the Monte-Carlo prices use SPY's cash dividends instead, which moves flat-vol prices by up to 1%.
 
-## Mathematical Background
+<!-- BEGIN:barrier-table -->
+| Barrier | DIP local vol | DIP BS strike vol | DIP BS barrier vol | LV - BS(strike) | Coupon effect p.a. | DOC local vol | DOC BS strike vol | DOC gap |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 75% | 1.10% | 0.00% | 2.03% | +1.10% | +4.5% | 3.39% | 3.38% | +0.1% |
+| 80% | 1.50% | 0.06% | 2.65% | +1.43% | +5.9% | 3.38% | 3.38% | -0.0% |
+| 85% | 1.93% | 0.46% | 3.23% | +1.47% | +6.0% | 3.36% | 3.38% | -0.7% |
+| 90% | 2.35% | 1.57% | 3.56% | +0.78% | +3.2% | 3.26% | 3.38% | -3.6% |
+| 95% | 2.67% | 2.59% | 3.39% | +0.07% | +0.3% | 2.77% | 3.02% | -8.2% |
+<!-- END:barrier-table -->
 
-### 1. Log-Moneyness
+Check of the local-vol engine: vanillas priced by the same Monte Carlo against the SSVI surface it was built from, and against the market.
 
-The smile is parametrised in **log-moneyness**:
+<!-- BEGIN:repricing-table -->
+| Strike | Type | Market vol | SSVI vol | Local-vol MC implied vol | MC error (std errors) |
+|---:|---|---:|---:|---:|---:|
+| 80% | put | 29.16% | 29.73% | 29.71% | -0.2 |
+| 90% | put | 21.88% | 23.04% | 23.07% | +0.4 |
+| 100% | call | 15.42% | 15.53% | 15.58% | +2.3 |
+| 110% | call | 12.41% | 13.12% | 13.15% | +1.0 |
+<!-- END:repricing-table -->
 
-```
-m = ln(K / F),   where F = S * exp((r - q) * T)
-```
+![Local volatility](figures/real/local_vol.png)
+</details>
 
-- `S` is the spot price, `K` the strike, `T` time to expiry in years.
-- `F` is the cost-of-carry forward (continuous dividend yield `q`, risk-free rate `r`).
-- Log-moneyness is preferred over simple moneyness `K/S - 1` because it is symmetric around zero, dimensionless, and consistent with the log-normal distribution underlying Black-Scholes. ATM corresponds to `m = 0` exactly.
+<details>
+<summary><b>Calibration time and stability</b></summary>
 
-### 2. SVI Parametrisation
+<!-- BEGIN:timing-table -->
+| Model | Median time, full surface (s) | Per slice (ms) | Runs |
+|---|---:|---:|---:|
+| SVI raw | 1.81 | 453 | 10 |
+| SVI constrained | 3.44 | 859 | 10 |
+| SSVI | 0.05 | 14 | 10 |
+<!-- END:timing-table -->
 
-Gatheral (2004) introduced the Stochastic Volatility Inspired (SVI) parametrisation of **total variance** `w = σ²T`:
+Stability: 50 recalibrations on quotes perturbed by N(0, 0.1 vol point²); standard deviation of the fitted vol, in vol points, worst expiry. Wings are extrapolated.
 
-```
-w(m) = a + b * [ ρ(m - μ) + sqrt((m - μ)² + ξ²) ]
-```
+<!-- BEGIN:stability-table -->
+| Model | Std ATM vol | Std put wing k=-0.5 | Std call wing k=+0.3 | Fits at a bound |
+|---|---:|---:|---:|---:|
+| SVI raw | 0.018 | 0.126 | 0.716 | 0 |
+| SVI constrained | 0.016 | 0.108 | 0.418 | 0 |
+| SSVI | 0.075 | 0.095 | 0.062 | 0 |
+<!-- END:stability-table -->
+</details>
 
-| Parameter | Domain        | Interpretation                                         |
-|-----------|---------------|--------------------------------------------------------|
-| `a`       | (-0.5, 2.0)   | Overall variance level. May be slightly negative at short maturities due to microstructure. |
-| `b`       | (0, 2.0)      | Slope / curvature. Controls the speed of the wings.    |
-| `ρ`       | (-1, 1)       | Skew correlation. Negative for equities (put premium). |
-| `μ`       | (-0.5, 0.5)   | Shift of the minimum. Near zero for index options.     |
-| `ξ`       | (0, 2.0)      | ATM smoothness. Larger values produce a flatter ATM region. |
+## Methodology
 
-The implied volatility is recovered as:
+**Data and conventions** ([data/README.md](data/README.md)). Mid prices of two-sided quotes only, never last-trade prices. Time to expiry ACT/365 from the snapshot time to 16:00 New York. One forward per expiry from put-call parity on near-the-money strikes; Black-76 implied vols on that forward, so spot, rate and dividend yield drop out. Discounting at the 3-month T-bill rate of the day (FRED DTB3). Out-of-the-money options only, filtered on minimum bid, delta (|Δ| ≥ 0.5%) and bid-ask width (≤ 1 vol point).
 
-```
-σ(m, T) = sqrt(w(m) / T)
-```
+**Models.** In log-moneyness k = ln(K/F) and total implied variance w = σ²T:
 
-SVI is used in practice because:
-- It fits observed smiles accurately with only five parameters.
-- It has a closed-form expression, making calibration fast.
-- The no-arbitrage conditions are tractable to check and enforce.
-- It generalises to a full surface via the SSVI extension (Gatheral & Jacquier 2014).
+* *Raw SVI* (Gatheral 2004), one slice per expiry: w(k) = a + b[ρ(k − m) + √((k − m)² + σ²)]. Fitted by least squares on implied vol, started from a quasi-explicit grid (Zeliade 2009).
+* *Constrained SVI*: same fit under static no-arbitrage. Durrleman's g(k) = (1 − k w′/2w)² − (w′²/4)(1/w + 1/4) + w″/2 ≥ 0 on a grid (non-negative density), Lee's wing bound b(1 ± ρ) ≤ 2, w ≥ 0, and w(k, Tᵢ) ≥ w(k, Tᵢ₋₁) (no calendar spread). Solved by a penalty continuation followed by SLSQP; feasibility re-checked on a 10x finer grid.
+* *SSVI* (Gatheral & Jacquier 2014): w(k, θ) = θ/2 [1 + ρφk + √((φk + ρ)² + 1 − ρ²)], φ(θ) = η / (θ^γ (1 + θ)^(1−γ)). θ_t is pinned to the market ATM total variance of each expiry and interpolated in time by a monotone spline through (0, 0); (ρ, η, γ) are global. With γ ≤ 1/2 and η at most the exact bound implied by Theorem 4.2 for every θ > 0, the surface is free of static arbitrage at every maturity, including t → 0, which Dupire needs.
 
-### 3. Black-Scholes IV Extraction
+**Local volatility.** Gatheral's form of Dupire: σ²_loc(y, T) = ∂_T w / g(y), with y = ln(K/F(0, T)). On SSVI, ∂_T w = (∂w/∂θ) θ′(T) ≥ 0 and g > 0, so the local variance is positive everywhere by construction.
 
-Implied volatility is extracted by inverting the Black-Scholes formula (Merton 1973 extension with continuous dividends):
+**Barrier pricing.** Y_t = ln(S_t / F(0, t)) is simulated under local vol with antithetic normals and a log-Euler scheme; continuous monitoring uses the exact Brownian-bridge crossing probability between grid dates. The forward curve carries SPY's two cash dividends (ex-dates 2026-06-18 and 2026-09-18) with the spot implied from the parity forward. Flat-vol prices use the same engine; the closed forms of Reiner & Rubinstein (1991) are cross-checked against QuantLib in the tests.
 
-```
-d1 = [ln(S/K) + (r - q + σ²/2) * T] / (σ * sqrt(T))
-d2 = d1 - σ * sqrt(T)
+**Limits (what this does not do).**
 
-Call = S * exp(-qT) * N(d1) - K * exp(-rT) * N(d2)
-Put  = K * exp(-rT) * N(-d2) - S * exp(-qT) * N(-d1)
-Vega = S * exp(-qT) * φ(d1) * sqrt(T)         (identical for call and put)
-```
+* One snapshot of delayed retail quotes (Yahoo), not a time series of exchange data: the results describe one day, not a statistical property.
+* SPY options are American; they are priced as European. Using out-of-the-money options only keeps the early-exercise premium small, but it is not modelled.
+* Flat discount curve (one T-bill rate) and cash dividends known in advance; dividends enter the local-vol dynamics proportionally to the spot (the forward jumps, the vol surface does not).
+* SSVI has one correlation ρ for all expiries, so it misses the steeper short-dated skew (RMSE of 1.3-1.4 vol points on the three shorter expiries, 1.2 vol points off the market at the 90% strike); the local vol and the barrier prices inherit this. Extended SSVI (ρ depending on θ, Hendriks & Martini 2019) would fix it and is not implemented.
+* Local vol prices barriers with today's smile frozen in the forward dynamics; it ignores the stochastic-vol component that a desk would add (local-stochastic vol).
+* Raw quotes are not redistributed: anyone can rerun the full pipeline on the bundled synthetic chain; the README numbers on the real chain are reproducible by anyone holding the file with the pinned SHA-256.
 
-**Algorithm (Newton-Raphson with Brent fallback):**
-
-1. Initialise `σ₀ = 0.20`.
-2. Newton-Raphson step: `σ_{n+1} = σ_n - (BS(σ_n) - price) / Vega(σ_n)`
-3. If `Vega(σ_n) < 1e-10` (deep OTM), switch immediately to Brent's method.
-   - Brent is slower but guaranteed convergent on a bracketed interval.
-4. Brent interval: `[1e-4, 10.0]`. If no sign change exists (price not bracketed), return `NaN` with an explicit log warning — never a silent `NaN`.
-
-NR diverges near the wings because vega approaches zero; the fallback to Brent prevents this failure mode.
-
-### 4. Butterfly No-Arbitrage Conditions
-
-**Lee (2004) — necessary condition:**
-
-For no butterfly arbitrage, the SVI parameters must satisfy:
+## Reproduce
 
 ```
-b * (1 + |ρ|) < 4 / T
+pip install -e .
+python scripts/run_results.py
 ```
 
-This is a necessary but not sufficient condition. It bounds the maximum slope of the smile wings.
+This runs the whole study on the bundled SPY-like sample and writes every table and figure to `results/sample/` and `figures/sample/` (about 3 minutes on one core; `--fast` for a quick smoke run). With the raw chain in `data/raw/`, `python scripts/run_results.py --snapshot data/snapshots/spy_20260603.json --update-readme` regenerates `results/real/`, `figures/real/` and every number above. Tests: `pip install -e .[dev,crosscheck]` then `pytest`. Demo notebook: [notebooks/demo.ipynb](notebooks/demo.ipynb).
 
-**Durrleman butterfly condition (necessary and sufficient):**
-
-A single SVI slice is free of butterfly arbitrage — equivalently, its implied
-risk-neutral density is non-negative — if and only if the Durrleman function
-`g(m) ≥ 0` for all `m`:
+## Code structure
 
 ```
-g(m) = (1 - m·w'(m)/(2·w(m)))²
-       - (w'(m)²/4)·(1/w(m) + 1/4)
-       + w''(m)/2
+src/volsurf/
+  data.py       snapshot metadata, chain loading, cleaning filters
+  forward.py    T-bill rate conversion, put-call-parity forwards, dividend-aware forward curve
+  iv.py         Black-76 prices, vega, delta, vectorised implied vol
+  svi.py        raw SVI, Durrleman g, unconstrained and constrained calibration
+  ssvi.py       SSVI with power-law phi, Theorem 4.1/4.2 conditions, theta curve, calibration
+  arbitrage.py  butterfly and calendar audits (g, price convexity, crossings)
+  localvol.py   Dupire local variance from total implied variance
+  barrier.py    Reiner-Rubinstein closed forms, local-vol Monte Carlo with Brownian bridge
+  pipeline.py   end-to-end study: fit, arbitrage, timing, stability, barriers
+  report.py     JSON/CSV outputs and the README tables
+  plots.py      figures
+scripts/        run_results.py, make_sample.py, fetch_data.py, audit/ (v0 audit)
+tests/          70+ tests: financial identities, known counterexamples, parameter recovery,
+                QuantLib cross-checks, regression on the sample and on the real snapshot
+data/           snapshot metadata, synthetic sample (raw quotes stay local)
+results/, figures/   outputs of scripts/run_results.py
 ```
 
-with analytic SVI derivatives:
-
-```
-w'(m)  = b·[ρ + (m-μ)/√((m-μ)²+ξ²)]
-w''(m) = b·ξ² / ((m-μ)²+ξ²)^{3/2}
-```
-
-The Lee condition is a fast necessary screen; the Durrleman `g(m) ≥ 0` is the
-complete characterisation and is what the pipeline reports in Section 5.
-
-> **Note on a corrected formula.** An earlier version of this project used
-> `g(m) = (1 - m·ρ/ξ_eff)² + (ρ²-1)·b²/ξ_eff²` and labelled it the "Roper
-> sufficient condition". That expression is **not** the Durrleman/Gatheral
-> butterfly function: tested against arbitrage-free calibrated surfaces it
-> returned `g < 0` (false arbitrage alarms) on 3 of 4 maturities, while the
-> correct Durrleman `g` was strictly positive everywhere. The formula above
-> is the corrected, standard condition (Gatheral & Jacquier 2014, eq. 2.2–2.3).
-
-Reference: Roper, M. (2010). *Arbitrage-Free Implied Volatility Surfaces*. Preprint.
-
-**Calendar no-arbitrage:**
-
-For fixed `m`, total variance must be non-decreasing in `T`:
-
-```
-w(m, T1) ≤ w(m, T2)   for T1 < T2
-```
-
-Violations on the raw data are expected due to noise and bid-ask spreads; violations on the calibrated per-slice SVI surface indicate that linear parameter interpolation is insufficient and that SSVI is needed.
-
-### 5. Surface SVI (SSVI)
-
-SSVI parametrises the entire surface rather than each slice independently:
-
-```
-w(k, θ) = (θ/2) · [ 1 + ρ·φ(θ)·k + √((φ(θ)·k + ρ)² + 1 − ρ²) ]
-φ(θ)    = η / ( θ^γ · (1+θ)^(1−γ) )        (power-law form)
-```
-
-where `θ = θ_t` is the ATM total variance at maturity `t` (the backbone), and
-`(ρ, η, γ)` are three global parameters shared by all maturities. `ssvi.py`
-calibrates `(ρ, η, γ, θ_1, …, θ_n)` jointly by least squares on implied vol,
-subject to the Gatheral–Jacquier (2014) no-arbitrage conditions enforced as
-hard constraints:
-
-- **Calendar:** `θ_t` non-decreasing in `t`.
-- **Butterfly:** `θ·φ(θ)·(1+|ρ|) < 4` and `θ·φ(θ)²·(1+|ρ|) ≤ 4` for all `θ`.
-
-Each SSVI slice maps to an equivalent raw-SVI slice
-(`b = θφ/2, m = −ρ/φ, ξ = √(1−ρ²)/φ, a = (θ/2)(1−ρ²)`), so the same Durrleman
-`g(m)` check validates butterfly no-arbitrage on the calibrated surface.
-
----
-
-## Key Results
-
-Values below come from the run of 2026-06-04 on SPY (spot 752.18). They
-illustrate what the pipeline produces; absolute numbers will differ with
-market conditions on later runs.
-
-![SVI smile fits per maturity](figures/fig1_svi_smile_fits.png)
-
-### ATM Term Structure
-
-| Maturity | SVI ATM Vol | SSVI ATM Vol | SSVI θ_t |
-|----------|-------------|--------------|----------|
-| 28d      | 13.8%       | 12.9%        | 0.00127  |
-| 57d      | 15.0%       | 14.1%        | 0.00311  |
-| 88d      | 15.4%       | 15.1%        | 0.00552  |
-| 179d     | 16.7%       | 16.7%        | 0.01368  |
-
-Term structure is upward-sloping (normal), consistent with long-run uncertainty
-premium. The two models agree closely on long-dated ATM vol and diverge by
-≤1% at 28d, where SSVI's single global ρ trades a small amount of short-end
-fit against global no-arbitrage.
-
-### SVI per-slice Calibration Quality
-
-| Maturity | SVI RMSE | Lee butterfly | Durrleman g_min | Verdict |
-|----------|----------|---------------|------------------|---------|
-| 28d      | 0.0039   | 52.06 (PASS)  | +0.005           | PASS (margin tight) |
-| 57d      | 0.0040   | 25.52 (PASS)  | +0.136           | PASS |
-| 88d      | 0.0086   | 16.50 (PASS)  | +0.205           | PASS (RMSE > 50bp) |
-| 179d     | 0.0037   |  8.03 (PASS)  | +0.274           | PASS |
-
-PASS threshold: RMSE < 50 bp; Durrleman g_min ≥ 0 (necessary and sufficient
-for no butterfly arbitrage on the slice).
-
-### SSVI Surface (globally arbitrage-free)
-
-| Parameter | Value  |
-|-----------|--------|
-| ρ         | −0.494 |
-| η         |  0.832 |
-| γ         |  0.582 |
-
-| Maturity | SSVI RMSE | Durrleman g_min | Calendar |
-|----------|-----------|------------------|----------|
-| 28d      | 0.0158    | +0.260           | PASS     |
-| 57d      | 0.0099    | +0.275           | PASS     |
-| 88d      | 0.0113    | +0.291           | PASS     |
-| 179d     | 0.0053    | +0.335           | PASS     |
-
-SSVI: 0 calendar violations on |k| ≤ 0.35, 4/4 butterfly PASS. The per-slice
-SVI surface had 152 calendar violations from linear parameter interpolation —
-SSVI eliminates them by construction.
-
-![SSVI vs per-slice SVI](figures/fig5_ssvi_vs_svi.png)
-
-### Approximate Skew Metrics
-
-These use **fixed moneyness `m = ±0.10`** — not true 25-delta strikes. True 25Δ RR requires solving `N(d₂(K)) = 0.25` for `K`; a desk implementation would use the delta-strike mapping.
-
-| Maturity | Approx RR (m=±0.10) | Approx BF (m=±0.10) |
-|----------|---------------------|---------------------|
-| 28d      | −10.6%              | +7.79%              |
-| 57d      |  −9.6%              | +3.86%              |
-| 88d      |  −7.9%              | +3.89%              |
-| 179d     |  −6.9%              | +1.89%              |
-
-![Skew and butterfly across maturities](figures/fig4_skew_analysis.png)
-
-Negative risk reversal across all maturities confirms equity put premium
-(market pricing tail risk asymmetrically downward). Skew flattens with
-maturity, also as expected.
-
----
-
-## Known Limitations
-
-### 1. SVI Parameter Interpolation vs SSVI
-
-The per-slice pipeline (`iv_surface.py`) fits each maturity independently and
-interpolates the five SVI parameters linearly across maturities:
-
-```
-p*(T*) = p1 + (T* - T1) / (T2 - T1) * (p2 - p1)
-```
-
-This does not guarantee a calendar-arbitrage-free surface, and in practice it
-produces calendar violations in the wings (reported in Section 5). **This is
-why `ssvi.py` is included:** the Surface SVI parametrisation (Gatheral &
-Jacquier 2014) anchors the whole surface on the ATM total-variance term
-structure with a single correlation, and is free of calendar and butterfly
-arbitrage by construction. The trade-off is documented below: SSVI fits each
-slice slightly worse than per-slice SVI (a single global `rho` cannot match
-four individually-steeper skews) in exchange for global no-arbitrage.
-
-### 2. Approximate RR/BF vs True 25Δ
-
-Risk reversal and butterfly are computed at fixed moneyness `m = ±0.10`. A proper vol desk uses the 25-delta strike:
-
-```
-K_25Δ: solve N(d₂(K)) = 0.25   (call 25Δ)
-       solve N(-d₂(K)) = 0.25  (put 25Δ)
-```
-
-This requires numerical root-finding per maturity and is not implemented.
-
-### 3. Flat Rate and Dividend Curves
-
-The pipeline uses scalar `r` and `q` for all maturities. A production implementation uses:
-- OIS discount curve for `r` (bootstrapped from swap rates).
-- Dividend term structure for `q` (bootstrapped from listed forwards or dividend swaps).
-
-The error from flat curves is small for short maturities but material for T > 1y.
-
-### 4. European Black-Scholes for American SPY Options
-
-SPY options are American. The pipeline uses European Black-Scholes to extract IV. The early exercise premium is negligible near-the-money but non-negligible deep ITM. A desk would use a binomial tree or Barone-Adesi–Whaley approximation for American options.
-
-### 5. Synthetic Self-Test (not a data source)
-
-The synthetic path uses fixed SVI parameters with additive Gaussian noise to
-verify that calibration recovers known parameters. It is not a data source and
-never writes to `data/`. Two caveats: (a) the chosen parameters imply ATM vols
-around 30–60% (much higher than real SPY ~12–20%) because the synthetic `a`/`b`
-were illustrative, not calibrated to a realistic level — this is irrelevant
-since real data replaces them; (b) the synthetic generator assigns each strike
-to exactly one option type, so the call-put parity test is never exercised by
-synthetic data. On real chains, where strikes carry both calls and puts, parity
-runs normally.
-
----
-
-## Interview Q&A
-
-**Q1: What is implied volatility and how do you extract it?**
-
-Implied volatility (IV) is the value of `σ` that, when substituted into the Black-Scholes formula, reproduces the observed market price of an option. It is the market's risk-neutral expectation of future realised volatility over the life of the option, expressed as an annualised standard deviation. Extraction inverts the BS formula numerically: Newton-Raphson for near-the-money strikes (fast convergence where vega is large), falling back to Brent's method for deep OTM strikes where vega approaches zero and NR diverges.
-
-**Q2: What is the SVI model and why is it used in practice?**
-
-SVI (Stochastic Volatility Inspired, Gatheral 2004) parametrises total variance `w(m) = a + b[ρ(m-μ) + √((m-μ)²+ξ²)]` in log-moneyness space. It is used because:
-1. Five parameters fit observed smiles with RMSE typically under 50bp.
-2. The formula is analytic — calibration via SLSQP is fast (milliseconds per maturity).
-3. No-arbitrage conditions are explicit and enforceable.
-4. It has the correct asymptotic behaviour: linear wings consistent with Roger Lee's moment formula.
-5. The SSVI extension provides a full arbitrage-free surface.
-
-**Q3: What is butterfly no-arbitrage and how do you verify it?**
-
-Butterfly no-arbitrage requires that the implied risk-neutral density `q(K) ≥ 0` everywhere. In terms of the smile, this means the second derivative of the call price with respect to strike is non-negative: `∂²C/∂K² ≥ 0`. For SVI, the Lee (2004) necessary condition `b(1+|ρ|) < 4/T` provides a quick check. The Roper (2010) sufficient condition `g(m) ≥ 0` for all `m` (where `g` involves the first and second derivatives of `w`) provides a complete characterisation. This pipeline enforces the Lee condition as a hard constraint in the SLSQP optimiser and reports both conditions in the arbitrage verification section.
-
-**Q4: Why does your smile show negative skew for SPY?**
-
-The negative skew (implied vol increasing as moneyness decreases, i.e. for puts below the forward) reflects the **equity volatility skew**: out-of-the-money puts are more expensive relative to Black-Scholes than OTM calls, for three reasons:
-1. **Demand for portfolio protection**: institutions systematically buy OTM puts to hedge equity exposure.
-2. **Leverage effect**: falling equity prices are associated with rising volatility (Black 1976), making put payoffs positively correlated with volatility — puts are a natural hedge for volatility sellers, reducing their required risk premium.
-3. **Jump risk**: the risk-neutral distribution has a fat left tail (crash risk), which is priced into OTM puts.
-
-In the SVI model, negative skew is captured by `ρ < 0` (typically -0.5 to -0.8 for SPY). The steepness of the skew is proportional to `b|ρ|`.
-
-**Q5: What would you do differently with more time?**
-
-SSVI is already implemented (`ssvi.py`) — it replaces the linear SVI-parameter
-interpolation with a globally calendar- and butterfly-arbitrage-free surface.
-Remaining work, in priority order:
-
-1. **eSSVI**: extend SSVI to a maturity-dependent correlation `ρ(θ)`
-   (Hendriks & Martini 2019), recovering per-slice fit quality while remaining
-   arbitrage-free. This addresses SSVI's main weakness — a single global `ρ`
-   under-fits steep short-dated skews.
-
-2. **True delta strikes**: replace the fixed-moneyness RR/BF approximation with
-   proper 25-delta and 10-delta strikes, solving `N(d₂(K)) = Δ` numerically.
-   This is what a desk actually trades.
-
-3. **Dupire local volatility**: extract the local vol surface from the
-   calibrated SSVI surface for exotic pricing.
-
-4. **Heston calibration**: calibrate the Heston (1993) stochastic volatility model `dσ² = κ(θ-σ²)dt + ν√σ²dW` to the surface. Heston gives more stable model dynamics than SVI and is standard for path-dependent exotics.
-
-5. **Rate and dividend curves**: replace flat `r` and `q` with bootstrapped OIS and dividend term structures.
-
----
+Project history: v0 of this repository published numbers computed from stale last-trade prices with an inactive butterfly constraint; the audit that led to this rebuild is in [AUDIT.md](AUDIT.md) (in French), progress notes in [PROGRESS.md](PROGRESS.md).
 
 ## References
 
-- Black, F. (1976). *Studies of stock price volatility changes.* Proceedings of the 1976 American Statistical Association.
-- Gatheral, J. (2004). *A parsimonious arbitrage-free implied volatility parametrization with application to the valuation of volatility derivatives.* Presentation at Global Derivatives & Risk Management, Madrid.
-- Gatheral, J. & Jacquier, A. (2014). *Arbitrage-free SVI volatility surfaces.* Quantitative Finance, 14(1), 59–71.
-- Heston, S. (1993). *A closed-form solution for options with stochastic volatility.* Review of Financial Studies, 6(2), 327–343.
-- Jaeckel, P. (2006). *By Implication.* Wilmott Magazine, November 2006.
-- Lee, R. (2004). *The moment formula for implied volatility at extreme strikes.* Mathematical Finance, 14(3), 469–480.
-- Merton, R. (1973). *Theory of rational option pricing.* Bell Journal of Economics, 4(1), 141–183.
-- Roper, M. (2010). *Arbitrage-free implied volatility surfaces.* Preprint, University of Sydney.
-
----
+* Black, F. (1976). The pricing of commodity contracts. *Journal of Financial Economics*, 3, 167-179.
+* Breeden, D. & Litzenberger, R. (1978). Prices of state-contingent claims implicit in option prices. *Journal of Business*, 51(4), 621-651.
+* Dupire, B. (1994). Pricing with a smile. *Risk*, 7(1), 18-20.
+* Gatheral, J. (2004). A parsimonious arbitrage-free implied volatility parametrization with application to the valuation of volatility derivatives. Global Derivatives & Risk Management, Madrid.
+* Gatheral, J. (2006). *The Volatility Surface: A Practitioner's Guide*. Wiley.
+* Gatheral, J. & Jacquier, A. (2014). Arbitrage-free SVI volatility surfaces. *Quantitative Finance*, 14(1), 59-71. arXiv:1204.0646.
+* Glasserman, P. (2003). *Monte Carlo Methods in Financial Engineering*. Springer.
+* Haug, E. G. (2007). *The Complete Guide to Option Pricing Formulas*, 2nd ed. McGraw-Hill.
+* Hendriks, S. & Martini, C. (2019). The extended SSVI volatility surface. *Journal of Computational Finance*, 22(5).
+* Lee, R. (2004). The moment formula for implied volatility at extreme strikes. *Mathematical Finance*, 14(3), 469-480.
+* Reiner, E. & Rubinstein, M. (1991). Breaking down the barriers. *Risk*, 4(8), 28-35.
+* Zeliade Systems (2009). Quasi-explicit calibration of Gatheral's SVI model. Zeliade white paper.
 
 ## License
 
-MIT
+MIT, see [LICENSE](LICENSE).
