@@ -13,7 +13,7 @@ Data: one frozen snapshot of listed SPY options on 2026-06-03 (4 expiries, 29 to
 <!-- BEGIN:key-results -->
 - **Fit.** On 680 out-of-the-money quotes, constrained (arbitrage-free) SVI has an implied-vol RMSE of 0.09-0.21 vol points per expiry, against 0.06-0.14 for unconstrained SVI and 0.73-1.42 for SSVI. Removing arbitrage costs at most 0.065 vol point per expiry; SSVI's single set of shape parameters for all expiries costs 0.64-1.34.
 - **Arbitrage.** Unconstrained SVI shows butterfly arbitrage (negative density) on 3 of 4 expiries (g(k) as low as -0.44, at k = 0.95 to 1.19) and 1 of 3 pairs of expiries cross in total variance (for k >= 0.27); none of these violations lie inside the quoted strike range (k <= 0.18). The fit looks clean on the data and breaks in the extrapolated wings, which Dupire local vol and every wing-sensitive product use. Constrained SVI and SSVI have no violation, confirmed by two independent checks (Durrleman g and convexity of call prices in strike); the SSVI surface is arbitrage-free at every maturity, not only at the listed ones (gamma <= 1/2).
-- **Speed.** A full surface takes 0.05 s with SSVI, 1.8 s with raw SVI and 3.4 s with constrained SVI (median, one CPU core).
+- **Speed.** A full surface takes 0.03 s with SSVI, 1.1 s with raw SVI and 2.0 s with constrained SVI (median, one CPU core).
 - **Structuring.** On a down-and-in put expiring in 89 days (strike 100%, barrier 90%), Dupire local vol gives 2.35% of notional against 1.57% for Black-Scholes at the strike vol (15.5%): the flat-vol desk would under-charge the barrier by 0.78% of notional, i.e. overstate a reverse-convertible coupon by about 3.2% per annum. Using the barrier-level vol instead (23.0%) gives 3.56%.
 - **Model check.** The local-vol Monte Carlo reprices the SSVI vanillas within 0.05 vol point (2.3 standard errors at most); SSVI itself is off the market by 1.17 vol point at the 90% strike, which bounds the precision of the barrier prices.
 <!-- END:key-results -->
@@ -52,7 +52,7 @@ Butterfly arbitrage is checked on k = ln(K/F) in [-1.5, 1.5] with Durrleman's g(
 <details>
 <summary><b>Barrier options: local vol vs flat vol</b></summary>
 
-Down-and-in put (DIP, the option an investor sells in a reverse convertible) and down-and-out call (DOC), strike 100% of spot, continuous monitoring, expiry 2026-08-31. Prices in % of spot. Local vol and flat vol use the same Monte-Carlo paths (400,000, antithetic, 4 steps per day, Brownian-bridge correction) and the same dividend-aware forward curve. "Coupon effect" converts the DIP gap into the annual coupon a reverse convertible would overstate.
+Down-and-in put (DIP, the option an investor sells in a reverse convertible) and down-and-out call (DOC), strike 100% of spot, continuous monitoring, expiry 2026-08-31. Prices in % of spot. Local vol and flat vol use the same Monte-Carlo paths (400,000, antithetic, 4 steps per day, Brownian-bridge correction) and the same dividend-aware forward curve. "Coupon effect" converts the DIP gap into the annual coupon a reverse convertible would overstate: gap / (D(T) T), the premium received today being paid out at maturity (issuer funding and margin ignored).
 
 "DIP BS barrier vol" is the closed form at the implied vol of the barrier level, with the continuous dividend yield equivalent to the forward; the Monte-Carlo prices use SPY's cash dividends instead, which moves flat-vol prices by up to 1%.
 
@@ -86,9 +86,9 @@ Check of the local-vol engine: vanillas priced by the same Monte Carlo against t
 <!-- BEGIN:timing-table -->
 | Model | Median time, full surface (s) | Per slice (ms) | Runs |
 |---|---:|---:|---:|
-| SVI raw | 1.81 | 453 | 10 |
-| SVI constrained | 3.44 | 859 | 10 |
-| SSVI | 0.05 | 14 | 10 |
+| SVI raw | 1.10 | 274 | 10 |
+| SVI constrained | 2.04 | 509 | 10 |
+| SSVI | 0.03 | 9 | 10 |
 <!-- END:timing-table -->
 
 Stability: 50 recalibrations on quotes perturbed by N(0, 0.1 vol point²); standard deviation of the fitted vol, in vol points, worst expiry. Wings are extrapolated.
@@ -121,7 +121,8 @@ Stability: 50 recalibrations on quotes perturbed by N(0, 0.1 vol point²); stand
 * One snapshot of delayed retail quotes (Yahoo), not a time series of exchange data: the results describe one day, not a statistical property.
 * SPY options are American; they are priced as European. Using out-of-the-money options only keeps the early-exercise premium small, but it is not modelled.
 * Flat discount curve (one T-bill rate) and cash dividends known in advance; dividends enter the local-vol dynamics proportionally to the spot (the forward jumps, the vol surface does not).
-* SSVI has one correlation ρ for all expiries, so it misses the steeper short-dated skew (RMSE of 1.3-1.4 vol points on the three shorter expiries, 1.2 vol points off the market at the 90% strike); the local vol and the barrier prices inherit this. Extended SSVI (ρ depending on θ, Hendriks & Martini 2019) would fix it and is not implemented.
+* SSVI has one correlation ρ for all expiries, so it misses the steeper short-dated skew (see its RMSE in the fit table and its error at the 90% strike in the model check above); the local vol and the barrier prices inherit this. Extended SSVI (ρ depending on θ, Hendriks & Martini 2019) would fix it and is not implemented.
+* Raw SVI parameters are not individually meaningful on these quotes: the strikes cover mostly the left branch of the hyperbola, and the unconstrained fit can place its vertex far to the right of the data with ρ > 0 while the smile slopes down. Only the fitted curve is interpreted, never ρ or m alone.
 * Local vol prices barriers with today's smile frozen in the forward dynamics; it ignores the stochastic-vol component that a desk would add (local-stochastic vol).
 * Raw quotes are not redistributed: anyone can rerun the full pipeline on the bundled synthetic chain; the README numbers on the real chain are reproducible by anyone holding the file with the pinned SHA-256.
 
@@ -132,7 +133,7 @@ pip install -e .
 python scripts/run_results.py
 ```
 
-This runs the whole study on the bundled SPY-like sample and writes every table and figure to `results/sample/` and `figures/sample/` (about 3 minutes on one core; `--fast` for a quick smoke run). With the raw chain in `data/raw/`, `python scripts/run_results.py --snapshot data/snapshots/spy_20260603.json --update-readme` regenerates `results/real/`, `figures/real/` and every number above. Tests: `pip install -e .[dev,crosscheck]` then `pytest`. Demo notebook: [notebooks/demo.ipynb](notebooks/demo.ipynb).
+This runs the whole study on the bundled SPY-like sample and writes every table and figure to `results/sample/` and `figures/sample/` (a couple of minutes on one core; `--fast` writes a quick smoke run to `out/fast/` instead). With the raw chain in `data/raw/`, `python scripts/run_results.py --snapshot data/snapshots/spy_20260603.json --update-readme` regenerates `results/real/`, `figures/real/` and every number above. Tests: `pip install -e ".[dev,crosscheck]"` then `pytest`. The exact environment of the CI is pinned in `constraints.txt`: `pip install -c constraints.txt -e ".[dev,crosscheck]"`. Demo notebook: [notebooks/demo.ipynb](notebooks/demo.ipynb).
 
 ## Code structure
 
@@ -150,7 +151,7 @@ src/volsurf/
   report.py     JSON/CSV outputs and the README tables
   plots.py      figures
 scripts/        run_results.py, make_sample.py, fetch_data.py, audit/ (v0 audit)
-tests/          70+ tests: financial identities, known counterexamples, parameter recovery,
+tests/          pytest: financial identities, known counterexamples, parameter recovery,
                 QuantLib cross-checks, regression on the sample and on the real snapshot
 data/           snapshot metadata, synthetic sample (raw quotes stay local)
 results/, figures/   outputs of scripts/run_results.py

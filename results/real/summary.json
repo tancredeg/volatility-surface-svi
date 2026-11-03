@@ -138,9 +138,9 @@
     "guaranteed": 1.0
   },
   "timing_median_s": {
-    "SVI raw": 1.8124919385002158,
-    "SVI constrained": 3.4354759169998488,
-    "SSVI": 0.0540717594999478
+    "SVI raw": 1.0964983175000214,
+    "SVI constrained": 2.0358134269999937,
+    "SSVI": 0.03419411049998189
   },
   "barrier": {
     "expiry": "2026-08-31",

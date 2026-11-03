@@ -48,3 +48,21 @@ Reste à faire (hors périmètre ou nécessite Tancrède)
 - CI : verte sur le commit `f914e37` (lint, tests 3.11/3.12/3.13).
 - Option : eSSVI (ρ dépendant de θ) pour corriger le biais de skew court de SSVI qui borne la précision des prix barrière.
 - Option : si des cotations réelles doivent être versionnées, utiliser une source dont la licence autorise la redistribution (ce n'est pas le cas de Yahoo).
+
+## Séance 4 — 2026-11-03 — Revue post-v1.0 : corrections (v1.0.1)
+
+Origine : relecture complète du dépôt pour le document d'explication (liste des problèmes de son § 8).
+
+Fait
+- Environnement : `constraints.txt` épingle toutes les dépendances, transitives comprises (pyparsing < 3.3 : plus d'avertissements de dépréciation avec matplotlib 3.10.3) ; la CI installe avec `-c constraints.txt`. Commandes d'installation entre guillemets (PowerShell).
+- Stabilité : les ajustements SSVI en butée sont désormais comptés (`SSVIFit.at_bound`) ; le 0 publié pour SSVI était une valeur par défaut, c'est maintenant une mesure (0 sur 50 tirages).
+- Effet coupon : écart DIP / (D(T) T) au lieu de / T (prime reçue aujourd'hui, coupon payé à l'échéance) ; 90 % : 3,19 % → 3,22 % par an, arrondi publié inchangé (« about 3.2% »).
+- Code : jacobien SVI calculé à partir de `SVIParams.w` (plus de formule dupliquée), `bridge=True` explicite dans l'étude barrière, `_market_vol` typé, propriété morte `Slice.total_variance` retirée, docstrings `svi.py` (grille de 301 points) et `iv.py` (précision machine) corrigées, format de g min (`-0.00` → `-0.003` sur l'échantillon).
+- Scripts : `--fast` écrit dans `out/fast/` (ne touche plus aux résultats versionnés) et refuse `--update-readme` ; `fetch_data.py` écrit un squelette `*.draft.json`, ignoré par git.
+- Tests (77) : Black-76 contre QuantLib (200 tirages) et limites σ → 0 / ∞ ; cotations croisées et bloquées écartées ; jacobien SVI par différences finies ; paramètre SSVI en butée ; phrase calendaire du README ; les tests n’écrivent plus de fichiers de données dans le dépôt ; rejoue réelle étendue à η, aux comptes d'arbitrage et aux prix DIP 90 % (locale et plate).
+- README : plus de chiffres écrits à la main hors blocs générés ; limite ajoutée sur la non-identifiabilité des paramètres du SVI brut (ρ > 0 avec m à droite des cotations).
+- Résultats régénérés (`results/`, `figures/`, README) : seuls changent les temps de calcul, l'effet coupon et des écarts de l'ordre de 1e-6 dans la stabilité du SVI contraint (jacobien recalculé).
+
+Reste à faire (nécessite Tancrède)
+- Page GitHub, réglages non modifiés par les sessions Claude : champ « Website » invalide (`https://github.com/<votre-handle>/iv-surface-svi`) et sujet mal formé `quantitative-finance-`. Commande : `gh repo edit tancredeg/volatility-surface-svi --homepage "" --remove-topic quantitative-finance-`.
+- Tag `v1.0.1` et release GitHub avec `docs/release_notes_v1.0.1.md`.

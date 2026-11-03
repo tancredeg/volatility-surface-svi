@@ -1,7 +1,7 @@
 <!-- BEGIN:key-results -->
 - **Fit.** On 680 out-of-the-money quotes, constrained (arbitrage-free) SVI has an implied-vol RMSE of 0.09-0.21 vol points per expiry, against 0.06-0.14 for unconstrained SVI and 0.73-1.42 for SSVI. Removing arbitrage costs at most 0.065 vol point per expiry; SSVI's single set of shape parameters for all expiries costs 0.64-1.34.
 - **Arbitrage.** Unconstrained SVI shows butterfly arbitrage (negative density) on 3 of 4 expiries (g(k) as low as -0.44, at k = 0.95 to 1.19) and 1 of 3 pairs of expiries cross in total variance (for k >= 0.27); none of these violations lie inside the quoted strike range (k <= 0.18). The fit looks clean on the data and breaks in the extrapolated wings, which Dupire local vol and every wing-sensitive product use. Constrained SVI and SSVI have no violation, confirmed by two independent checks (Durrleman g and convexity of call prices in strike); the SSVI surface is arbitrage-free at every maturity, not only at the listed ones (gamma <= 1/2).
-- **Speed.** A full surface takes 0.05 s with SSVI, 1.8 s with raw SVI and 3.4 s with constrained SVI (median, one CPU core).
+- **Speed.** A full surface takes 0.03 s with SSVI, 1.1 s with raw SVI and 2.0 s with constrained SVI (median, one CPU core).
 - **Structuring.** On a down-and-in put expiring in 89 days (strike 100%, barrier 90%), Dupire local vol gives 2.35% of notional against 1.57% for Black-Scholes at the strike vol (15.5%): the flat-vol desk would under-charge the barrier by 0.78% of notional, i.e. overstate a reverse-convertible coupon by about 3.2% per annum. Using the barrier-level vol instead (23.0%) gives 3.56%.
 - **Model check.** The local-vol Monte Carlo reprices the SSVI vanillas within 0.05 vol point (2.3 standard errors at most); SSVI itself is off the market by 1.17 vol point at the 90% strike, which bounds the precision of the barrier prices.
 <!-- END:key-results -->
@@ -26,9 +26,9 @@
 <!-- BEGIN:timing-table -->
 | Model | Median time, full surface (s) | Per slice (ms) | Runs |
 |---|---:|---:|---:|
-| SVI raw | 1.81 | 453 | 10 |
-| SVI constrained | 3.44 | 859 | 10 |
-| SSVI | 0.05 | 14 | 10 |
+| SVI raw | 1.10 | 274 | 10 |
+| SVI constrained | 2.04 | 509 | 10 |
+| SSVI | 0.03 | 9 | 10 |
 <!-- END:timing-table -->
 
 <!-- BEGIN:stability-table -->
