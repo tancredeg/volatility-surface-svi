@@ -305,9 +305,9 @@ def barrier_study(snap: PreparedSnapshot, fit: SSVIFit, cfg: StudyConfig) -> Bar
     table["dip_gap_pct"] = (table["dip_lv"] / table["dip_flat"] - 1.0) * 100
     table["doc_gap_pct_of_spot"] = (table["doc_lv"] - table["doc_flat"]) / S0 * 100
     table["dip_gap_pct_of_spot"] = (table["dip_lv"] - table["dip_flat"]) / S0 * 100
-    # A reverse convertible is long a bond and short the DIP: underpricing the DIP by x% of notional
-    # overstates the coupon the issuer can pay by x% / T per annum.
-    table["coupon_overstatement_pa_pct"] = table["dip_gap_pct_of_spot"] / T
+    # A reverse convertible is long a bond and short the DIP: x% of notional of DIP premium received today
+    # funds x% / D(T) of extra coupon at maturity, i.e. x% / (D(T) T) per annum (issuer funding/margin ignored).
+    table["coupon_overstatement_pa_pct"] = table["dip_gap_pct_of_spot"] / (D * T)
     rep = []
     for lvl in (0.80, 0.90, 1.00, 1.10):
         Kx = lvl * S0
