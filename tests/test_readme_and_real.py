@@ -3,7 +3,8 @@
 * The README tables are exactly the generated ``results/real/tables.md`` blocks
   (no hand-edited number survives a rerun).
 * When the raw SPY chain is available locally (it is not redistributed), a
-  recalibration reproduces ``results/real/summary.json``.
+  recalibration reproduces ``results/real/summary.json``: fits, SSVI parameters,
+  arbitrage counts and the 90% barrier prices.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ import numpy as np
 import pytest
 
 from volsurf.data import load_snapshot
-from volsurf.pipeline import MODELS, calibrate_all, fit_table
+from volsurf.pipeline import MODELS, StudyConfig, arbitrage_table, barrier_study, calibrate_all, fit_table
 
 from .conftest import ROOT
 
@@ -55,4 +56,14 @@ def test_recalibration_reproduces_published_real_results() -> None:
         np.testing.assert_allclose(fit[f"rmse_vp[{m}]"], exp["rmse_vp"][m], rtol=1e-3, atol=1e-3)
     assert cal.ssvi.params.rho == pytest.approx(exp["ssvi"]["rho"], abs=1e-4)
     assert cal.ssvi.params.gamma == pytest.approx(exp["ssvi"]["gamma"], abs=1e-4)
+    assert cal.ssvi.params.eta == pytest.approx(exp["ssvi"]["eta"], rel=1e-4)
     np.testing.assert_allclose(cal.ssvi.theta, exp["ssvi"]["theta"], rtol=1e-9)
+    bfly, calendar = arbitrage_table(snap, cal)
+    for m in MODELS:
+        assert int((bfly[bfly.model == m].g_min < -1e-7).sum()) == exp["butterfly_slices_with_violation"][m]
+        pts = calendar[calendar.model == m][["viol_points_supported", "viol_points_extrapolated"]].to_numpy()
+        assert int(pts.sum()) == exp["calendar_violation_points"][m]
+    # the headline structuring result (same seed and paths as the published run, about 40 s)
+    r90 = barrier_study(snap, cal.ssvi, StudyConfig()).table.set_index("barrier_pct").loc[90.0]
+    assert r90["dip_lv"] == pytest.approx(exp["barrier"]["dip90_lv"], rel=1e-6)
+    assert r90["dip_flat"] == pytest.approx(exp["barrier"]["dip90_flat"], rel=1e-6)
