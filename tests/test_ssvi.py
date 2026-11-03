@@ -79,8 +79,17 @@ def test_recovers_known_surface() -> None:
     assert fit.params.eta == pytest.approx(true.eta, rel=1e-3)
     assert fit.params.gamma == pytest.approx(true.gamma, abs=1e-3)
     assert fit.rmse_total < 1e-5
+    assert fit.at_bound == ()
     joint = calibrate_ssvi(slices, mode="joint")
     np.testing.assert_allclose(joint.theta, thetas, rtol=1e-3)
+
+
+def test_parameter_at_a_bound_is_reported() -> None:
+    true = SSVIParams(rho=-0.55, eta=1.0, gamma=0.5)  # gamma on its upper bound gamma_max = 1/2
+    k = np.linspace(-0.4, 0.15, 80)
+    mats, thetas = [0.08, 0.16, 0.25, 0.5], [0.0015, 0.0033, 0.0056, 0.0135]
+    fit = calibrate_ssvi([(t, k, np.sqrt(true.w(k, th) / t)) for t, th in zip(mats, thetas, strict=True)])
+    assert "gamma" in fit.at_bound
 
 
 def test_non_monotone_atm_variance_is_flagged() -> None:

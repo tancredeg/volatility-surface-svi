@@ -194,8 +194,8 @@ def stability_table(snap: PreparedSnapshot, n_runs: int, noise_vol: float, seed:
     for _ in range(n_runs):
         data = [(s.maturity, s.k, s.iv_mid + rng.normal(0.0, noise_vol, size=s.k.shape)) for s in snap.slices]
         cal = calibrate_all(snap, data)
-        bounds_hit["SVI raw"] += sum(bool(f.at_bound) for f in cal.svi_raw)
-        bounds_hit["SVI constrained"] += sum(bool(f.at_bound) for f in cal.svi_con)
+        for m, fits in (("SVI raw", cal.svi_raw), ("SVI constrained", cal.svi_con), ("SSVI", [cal.ssvi])):
+            bounds_hit[m] += sum(bool(f.at_bound) for f in fits)
         for m in MODELS:
             for i, (s, p) in enumerate(zip(snap.slices, cal.slice_params(m), strict=True)):
                 for name, kk in probes.items():

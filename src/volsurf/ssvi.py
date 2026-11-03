@@ -184,6 +184,7 @@ class SSVIFit:
     mode: str
     theta_adjusted: bool  # market ATM variance had to be made monotone
     success: bool
+    at_bound: tuple[str, ...] = ()  # shape parameters at a box bound ("eta/eta_max" = Thm 4.2 binding)
 
     def theta_curve(self) -> ThetaCurve:
         return ThetaCurve(self.maturities, self.theta)
@@ -281,6 +282,9 @@ def calibrate_ssvi(
             best, best_cost = res, cost
     assert best is not None
     p, theta = unpack(np.asarray(best.x))
+    lo3, hi3, x3 = np.array(lo[:3]), np.array(hi[:3]), np.asarray(best.x)[:3]
+    hit = (x3 - lo3 < 1e-6 * (hi3 - lo3)) | (hi3 - x3 < 1e-6 * (hi3 - lo3))
+    at_bound = tuple(n for n, h in zip(("rho", "eta/eta_max", "gamma"), hit, strict=True) if h)
     per = []
     for T, k, v, th in zip(mats, ks, ivs, theta, strict=True):
         per.append(float(np.sqrt(np.mean((np.sqrt(p.w(k, th) / T) - v) ** 2))))
@@ -296,4 +300,5 @@ def calibrate_ssvi(
         mode=mode,
         theta_adjusted=adjusted,
         success=bool(best.success),
+        at_bound=at_bound,
     )
