@@ -21,7 +21,7 @@ from .barrier import (
     mc_barrier,
     simulation_times,
 )
-from .data import PreparedSnapshot
+from .data import PreparedSnapshot, Slice
 from .forward import ForwardCurve, implied_spot
 from .iv import FloatArray, black76_price, implied_vol
 from .localvol import LocalVolGrid, build_ssvi_local_vol_grid, ssvi_local_variance
@@ -274,8 +274,8 @@ def barrier_study(snap: PreparedSnapshot, fit: SSVIFit, cfg: StudyConfig) -> Bar
         "n_paths": cfg.n_paths,
         "seed": cfg.seed,
     }
-    lv = mc_barrier(vol=grid, **common)  # type: ignore[arg-type]
-    fl = mc_barrier(vol=flat_vol(sigma_flat), **common)  # type: ignore[arg-type]
+    lv = mc_barrier(vol=grid, bridge=True, **common)  # type: ignore[arg-type]
+    fl = mc_barrier(vol=flat_vol(sigma_flat), bridge=True, **common)  # type: ignore[arg-type]
     rows = []
     for j, lvl in enumerate(cfg.barrier_levels):
         H = barriers[j]
@@ -350,10 +350,10 @@ def barrier_study(snap: PreparedSnapshot, fit: SSVIFit, cfg: StudyConfig) -> Bar
     )
 
 
-def _market_vol(sl: object, k: float) -> float:
+def _market_vol(sl: Slice, k: float) -> float:
     """Market mid vol linearly interpolated in k (NaN outside the quoted range)."""
-    kk = sl.k  # type: ignore[attr-defined]
-    iv = sl.iv_mid  # type: ignore[attr-defined]
+    kk = sl.k
+    iv = sl.iv_mid
     if k < kk[0] or k > kk[-1]:
         return float("nan")
     return float(np.interp(k, kk, iv))

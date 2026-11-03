@@ -4,6 +4,7 @@ Usage (from the repository root):
     python scripts/run_results.py                      # bundled synthetic sample -> results/sample, figures/sample
     python scripts/run_results.py --snapshot data/snapshots/spy_20260603.json --update-readme
                                                        # real SPY snapshot (raw chain required) -> README
+    python scripts/run_results.py --fast               # smoke run -> out/fast/ (not versioned)
 
 The real SPY chain is not redistributed (Yahoo Finance terms); its metadata
 (timestamp, rate, dividends, SHA-256 of the chain file) is versioned in
@@ -30,9 +31,13 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--snapshot", default=str(ROOT / "data/sample/spy_like_20260603.json"))
     ap.add_argument("--name", default=None, help="Output sub-folder (default: 'real' or 'sample').")
-    ap.add_argument("--fast", action="store_true", help="Fewer paths and runs (smoke test).")
+    ap.add_argument(
+        "--fast", action="store_true", help="Fewer paths and runs (smoke test), written to out/fast/."
+    )
     ap.add_argument("--update-readme", action="store_true", help="Inject the tables into README.md.")
     args = ap.parse_args()
+    if args.fast and args.update_readme:
+        raise SystemExit("Refusing to inject --fast (smoke-test) numbers into the README.")
 
     warnings.filterwarnings("ignore", message="Values in x were outside bounds")
     t0 = time.perf_counter()
@@ -40,9 +45,10 @@ def main() -> None:
     name = args.name or ("sample" if snap.meta.synthetic else "real")
     cfg = StudyConfig.fast() if args.fast else StudyConfig()
     res = run_study(snap, cfg)
-    out = ROOT / "results" / name
+    base = ROOT / "out" / "fast" if args.fast else ROOT  # --fast never overwrites the versioned results
+    out = base / "results" / name
     write_outputs(res, out)
-    figs = plot_all(res, ROOT / "figures" / name)
+    figs = plot_all(res, base / "figures" / name)
     print(
         f"Snapshot {snap.meta.underlying} {snap.meta.valuation_time:%Y-%m-%d %H:%M} UTC "
         f"({'synthetic' if snap.meta.synthetic else 'market'}), {len(snap.slices)} expiries"

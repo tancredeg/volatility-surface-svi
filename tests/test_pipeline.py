@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from pathlib import Path
 
@@ -11,7 +12,7 @@ import pytest
 from volsurf.data import PreparedSnapshot
 from volsurf.pipeline import MODELS, Calibration, StudyConfig, fit_table, run_study
 from volsurf.plots import plot_all
-from volsurf.report import BLOCKS, inject, summary, write_outputs
+from volsurf.report import BLOCKS, inject, md_key_results, summary, write_outputs
 
 from .conftest import ROOT
 
@@ -57,6 +58,13 @@ def test_full_study_smoke(sample: PreparedSnapshot, tmp_path: Path) -> None:
     t = res.barrier.table
     assert (t.dip_lv > 0).all() and (np.diff(t.dip_lv) > 0).all()  # higher barrier, dearer knock-in
     assert (t.knock_prob_lv > 0).all()
+    assert set(res.stability.model) == set(MODELS) and (res.stability.fits_at_bound >= 0).all()
+    # README sentence used when raw SVI slices cross (no crossing on the sample: force one)
+    cal = res.calendar.copy()
+    i = cal.index[cal.model == "SVI raw"][0]
+    cal.loc[i, ["viol_points_extrapolated", "k_viol_min"]] = [5, 0.3]
+    txt = md_key_results(dataclasses.replace(res, calendar=cal))
+    assert "1 of 3 pairs of expiries cross in total variance (for k >= 0.30)" in txt
     readme = tmp_path / "README.md"
     readme.write_text(
         "".join(f"<!-- BEGIN:{k} -->\nold\n<!-- END:{k} -->\n" for k in BLOCKS), encoding="utf-8"

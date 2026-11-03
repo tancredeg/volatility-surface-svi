@@ -102,9 +102,10 @@ def implied_vol(
     """Black-76 implied volatility by vectorised bisection on [SIGMA_MIN, SIGMA_MAX].
 
     The Black price is strictly increasing in sigma, so bisection always
-    converges inside the bracket; 100 halvings give a bracket width below
-    1e-29. Prices outside the model-free bounds, or outside the prices at the
-    bracket ends, return NaN (no silent clipping).
+    converges inside the bracket; after 100 halvings the bracket is below the
+    float64 spacing, so sigma is exact to machine precision. Prices outside the
+    model-free bounds, or outside the prices at the bracket ends, return NaN
+    (no silent clipping).
 
     Args:
         price: Observed option price (discounted).

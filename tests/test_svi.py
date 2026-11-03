@@ -7,7 +7,15 @@ import pytest
 
 from volsurf.data import PreparedSnapshot
 from volsurf.pipeline import Calibration
-from volsurf.svi import K_CHECK, SVIParams, _quasi_explicit_inner, calibrate_svi, calibrate_svi_surface
+from volsurf.svi import (
+    K_CHECK,
+    SVIParams,
+    _model_vol,
+    _quasi_explicit_inner,
+    _vol_jacobian,
+    calibrate_svi,
+    calibrate_svi_surface,
+)
 
 TRUE = SVIParams(a=0.004, b=0.06, rho=-0.6, m=0.02, sigma=0.15)
 T = 0.25
@@ -20,6 +28,15 @@ def test_derivatives_match_finite_differences() -> None:
     np.testing.assert_allclose(
         TRUE.d2w(k), (TRUE.w(k + h) - 2 * TRUE.w(k) + TRUE.w(k - h)) / h**2, rtol=1e-3, atol=1e-6
     )
+
+
+def test_vol_jacobian_matches_finite_differences() -> None:
+    # The analytic Jacobian restates the SVI derivatives: it must follow any change of SVIParams.w.
+    x, h = TRUE.as_array(), 1e-7
+    fd = np.column_stack(
+        [(_model_vol(x + h * e, K, T) - _model_vol(x - h * e, K, T)) / (2 * h) * 100.0 for e in np.eye(5)]
+    )
+    np.testing.assert_allclose(_vol_jacobian(x, K, T), fd, rtol=1e-5, atol=1e-6)
 
 
 def test_vogt_counterexample_has_butterfly_arbitrage() -> None:

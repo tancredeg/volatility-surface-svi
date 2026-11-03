@@ -187,10 +187,6 @@ class Slice:
     iv_ask: FloatArray
 
     @property
-    def total_variance(self) -> FloatArray:
-        return np.asarray(self.iv_mid**2 * self.maturity)
-
-    @property
     def k_range(self) -> tuple[float, float]:
         return float(self.k.min()), float(self.k.max())
 

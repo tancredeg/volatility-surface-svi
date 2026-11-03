@@ -152,10 +152,10 @@ def _quasi_explicit_inner(
 
 def _vol_jacobian(x: FloatArray, k: FloatArray, maturity: float) -> FloatArray:
     """d sigma_SVI / d(a, b, rho, m, sigma) with sigma_SVI = sqrt(w/T), times 100 (vol points)."""
-    a, b, rho, m, sig = x
+    _, b, rho, m, sig = x
     dk = k - m
     root = np.sqrt(dk * dk + sig * sig)
-    w = np.maximum(a + b * (rho * dk + root), W_FLOOR)
+    w = np.maximum(SVIParams.from_array(x).w(k), W_FLOOR)
     dw = np.column_stack([np.ones_like(k), rho * dk + root, b * dk, -b * (rho + dk / root), b * sig / root])
     return np.asarray(dw * (100.0 / (2.0 * np.sqrt(w * maturity)))[:, None])
 
@@ -293,11 +293,11 @@ def calibrate_svi(
     in this package so that RMSEs are comparable.
 
     * ``constrained=False``: box bounds only (scipy ``least_squares``, TRF).
-    * ``constrained=True``: SLSQP with g(k) >= 0 on a grid of 151 points over
+    * ``constrained=True``: SLSQP with g(k) >= 0 on a grid of 301 points over
       [-1.5, 1.5], Lee's bound b(1 +/- rho) <= 2, min_k w >= 0 and, if
       ``lower`` is given, w(k) >= w_prev(k) on the same grid (no calendar
-      arbitrage with the previous slice). g is constrained on 301 points over
-      [-1.5, 1.5] with a margin of 1e-4; feasibility is re-checked on 3001
+      arbitrage with the previous slice). g is constrained with a margin of
+      1e-4 so that it stays >= 0 between grid points; feasibility is re-checked on 3001
       points. SLSQP is started from the raw fit, from near-feasible slices built
       from the previous slice (scaled and shifted up to the market ATM level) or
       a near-flat slice, and from ``extra_starts``; the best feasible result wins.

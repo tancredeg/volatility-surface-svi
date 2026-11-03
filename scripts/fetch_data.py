@@ -102,12 +102,15 @@ def main() -> None:
         "dividends": [],
         "synthetic": False,
     }
-    meta_path = META_DIR / f"spy_{tag}.json"
+    meta_path = META_DIR / f"spy_{tag}.draft.json"  # git-ignored until completed and renamed
     meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
     print(
         f"Saved {len(combined)} quotes ({two_sided:.0%} two-sided) for {selected} to {out.relative_to(ROOT)}"
     )
-    print(f"Metadata skeleton: {meta_path.relative_to(ROOT)} (fill in the rate and the dividends)")
+    print(
+        f"Metadata skeleton: {meta_path.relative_to(ROOT)}. Fill in the rate and the dividends, "
+        f"then rename it to spy_{tag}.json before versioning it."
+    )
 
 
 if __name__ == "__main__":

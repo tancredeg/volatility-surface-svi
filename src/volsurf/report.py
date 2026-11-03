@@ -182,7 +182,7 @@ def md_key_results(res: StudyResults) -> str:
         cal_txt = "and no calendar crossing"
     bfly_txt = (
         f"butterfly arbitrage (negative density) on {len(raw_bad)} of {n} expiries "
-        f"(g(k) as low as {rb.g_min.min():+.2f}, at k = {raw_bad.k_at_g_min.min():.2f} to "
+        f"(g(k) as low as {rb.g_min.min():+.2g}, at k = {raw_bad.k_at_g_min.min():.2f} to "
         f"{raw_bad.k_at_g_min.max():.2f})"
         if len(raw_bad)
         else "no butterfly arbitrage"

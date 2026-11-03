@@ -60,24 +60,33 @@ def test_min_maturity_filter(sample: PreparedSnapshot) -> None:
 
 
 def test_hash_mismatch_and_missing_file(tmp_path: Path) -> None:
+    # The metadata copies live in pytest's temporary folder: the repository is never written to.
     meta = json.loads(SAMPLE_META.read_text(encoding="utf-8"))
+    meta["chain_file"] = str(SAMPLE_META.parents[2] / meta["chain_file"])  # absolute path
     meta["chain_sha256"] = "0" * 64
-    root = SAMPLE_META.parents[2]
-    bad = root / "data" / "sample" / "_tmp_bad_meta.json"
-    try:
-        bad.write_text(json.dumps(meta), encoding="utf-8")
-        with pytest.raises(ValueError, match="SHA-256"):
-            load_snapshot(bad)
-        meta["chain_file"] = "data/sample/does_not_exist.csv"
-        bad.write_text(json.dumps(meta), encoding="utf-8")
-        with pytest.raises(FileNotFoundError):
-            load_snapshot(bad)
-        meta["rate"]["rate_cc"] = None  # skeleton written by scripts/fetch_data.py, not filled in
-        bad.write_text(json.dumps(meta), encoding="utf-8")
-        with pytest.raises(ValueError, match="rate"):
-            load_snapshot(bad)
-    finally:
-        bad.unlink(missing_ok=True)
+    bad = tmp_path / "bad_meta.json"
+    bad.write_text(json.dumps(meta), encoding="utf-8")
+    with pytest.raises(ValueError, match="SHA-256"):
+        load_snapshot(bad)
+    meta["chain_file"] = str(tmp_path / "does_not_exist.csv")
+    bad.write_text(json.dumps(meta), encoding="utf-8")
+    with pytest.raises(FileNotFoundError):
+        load_snapshot(bad)
+    meta["rate"]["rate_cc"] = None  # skeleton written by scripts/fetch_data.py, not filled in
+    bad.write_text(json.dumps(meta), encoding="utf-8")
+    with pytest.raises(ValueError, match="rate"):
+        load_snapshot(bad)
+
+
+def test_crossed_and_locked_quotes_are_dropped(sample: PreparedSnapshot) -> None:
+    chain = load_chain(sample.meta.chain_file)
+    base = prepare_snapshot(chain, sample.meta)
+    idx = chain.index[(chain["bid"] > 0) & (chain["ask"] > chain["bid"])][:6]
+    bad = chain.copy()
+    bad.loc[idx[:3], "bid"] = bad.loc[idx[:3], "ask"] + 0.05  # crossed: bid > ask
+    bad.loc[idx[3:], "bid"] = bad.loc[idx[3:], "ask"]  # locked: bid = ask
+    snap = prepare_snapshot(bad, sample.meta)
+    assert snap.filter_log["two_sided"].sum() == base.filter_log["two_sided"].sum() - 6
 
 
 def test_missing_columns_raise(tmp_path: Path) -> None:

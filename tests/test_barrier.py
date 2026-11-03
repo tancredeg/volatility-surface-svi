@@ -106,7 +106,6 @@ def test_bridge_correction_removes_discrete_monitoring_bias() -> None:
 
 
 def test_martingale_with_cash_dividend() -> None:
-    curve = ForwardCurve(100.0, 0.03, ())
     from volsurf.forward import CashDividend
 
     curve = ForwardCurve(100.0, 0.03, (CashDividend(0.1, 1.5),))

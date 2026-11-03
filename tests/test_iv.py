@@ -33,6 +33,33 @@ def test_implied_vol_round_trip(is_call: bool) -> None:
     np.testing.assert_allclose(iv[ok], sig[ok], atol=1e-8)
 
 
+def test_black76_limits() -> None:
+    F, T, D = 100.0, 0.5, 0.98
+    K = np.array([80.0, 120.0])
+    # zero vol: discounted intrinsic value of the forward
+    np.testing.assert_allclose(black76_price(F, K, T, D, 1e-9, True), D * np.maximum(F - K, 0.0), atol=1e-12)
+    np.testing.assert_allclose(black76_price(F, K, T, D, 1e-9, False), D * np.maximum(K - F, 0.0), atol=1e-12)
+    # small vol at the money: C = P = D F sigma sqrt(T / 2 pi) to first order (Brenner & Subrahmanyam 1988)
+    atm = D * F * 1e-4 * np.sqrt(T / (2 * np.pi))
+    assert float(black76_price(F, F, T, D, 1e-4, True)) == pytest.approx(atm, rel=1e-8)
+    # infinite vol: the call tends to D F and the put to D K
+    np.testing.assert_allclose(black76_price(F, K, T, D, 50.0, True), D * F, rtol=1e-9)
+    np.testing.assert_allclose(black76_price(F, K, T, D, 50.0, False), D * K, rtol=1e-9)
+
+
+def test_black76_matches_quantlib() -> None:
+    # Independent reference. The parity test above holds for any d1 and d2, so it cannot catch a wrong formula.
+    ql = pytest.importorskip("QuantLib")
+    rng = np.random.default_rng(3)
+    for _ in range(200):
+        F, D = 100.0, float(rng.uniform(0.9, 1.0))
+        T, sig = float(rng.uniform(0.02, 2.0)), float(rng.uniform(0.05, 1.0))
+        K = F * float(np.exp(rng.uniform(-1.0, 0.5) * sig * np.sqrt(T) * 2))
+        for is_call, otype in ((True, ql.Option.Call), (False, ql.Option.Put)):
+            ref = ql.blackFormula(otype, K, F, sig * np.sqrt(T), D)
+            assert float(black76_price(F, K, T, D, sig, is_call)) == pytest.approx(ref, rel=1e-10, abs=1e-12)
+
+
 def test_implied_vol_is_nan_outside_no_arbitrage_bounds() -> None:
     F, K, T, D = 100.0, 90.0, 0.5, 0.99
     intrinsic = D * (F - K)

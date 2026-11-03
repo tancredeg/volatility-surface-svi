@@ -28,6 +28,8 @@ htmlcov/
 # (data/snapshots/). The bundled synthetic sample (data/sample/) is versioned.
 data/raw/
 data/*.csv
+# Metadata skeletons written by scripts/fetch_data.py, versioned only once completed and renamed
+data/snapshots/*.draft.json
 
-# Scratch outputs of the audit scripts
+# Scratch outputs (audit scripts, run_results.py --fast)
 out/
