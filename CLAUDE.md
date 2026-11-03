@@ -29,7 +29,7 @@ Sujet : surface de volatilité implicite SPY, SVI par tranche (Gatheral 2004) vs
 10. Seeds fixées partout ; aucun chemin absolu ; fonctions pures, type hints, docstrings avec formule et référence.
 
 ## Commandes
-- Installation : `pip install -e .[dev,crosscheck]`
+- Installation : `pip install -e ".[dev,crosscheck]"` (exact environment of the CI : `pip install -c constraints.txt -e ".[dev,crosscheck]"`)
 - Tests : `pytest`
 - Lint/format/types : `ruff check .` ; `ruff format .` ; `mypy src`
 - Résultats sur l'échantillon synthétique : `python scripts/run_results.py` ; résultats du README (chaîne brute requise dans `data/raw/`) : `python scripts/run_results.py --snapshot data/snapshots/spy_20260603.json --update-readme`

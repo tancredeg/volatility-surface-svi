@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-      - run: pip install -e ".[dev]"
+      - run: pip install -c constraints.txt -e ".[dev]"
       - run: ruff check .
       - run: ruff format --check .
       - run: mypy
@@ -33,5 +33,5 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - run: pip install -e ".[dev,crosscheck]"
+      - run: pip install -c constraints.txt -e ".[dev,crosscheck]"
       - run: pytest --cov=volsurf --cov-report=term-missing
