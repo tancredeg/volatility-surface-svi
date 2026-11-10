@@ -33,3 +33,6 @@ data/snapshots/*.draft.json
 
 # Scratch outputs (audit scripts, run_results.py --fast)
 out/
+
+# Local interview preparation (never published)
+entretien/
