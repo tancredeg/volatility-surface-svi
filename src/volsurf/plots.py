@@ -148,7 +148,7 @@ def plot_arbitrage(res: StudyResults, path: Path) -> Path:
     a2.set_xlabel("k")
     a1.legend(loc="lower left")
     fig.tight_layout()
-    return save(fig, path, "Static-arbitrage audit of the calibrated slices")
+    return save(fig, path, "Static-arbitrage checks of the calibrated slices")
 
 
 def plot_local_vol(res: StudyResults, path: Path) -> Path:

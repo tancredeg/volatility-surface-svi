@@ -1,4 +1,4 @@
-"""End-to-end study: calibration, fit quality, arbitrage audit, timing, stability, local vol and barriers.
+"""End-to-end study: calibration, fit quality, arbitrage checks, timing, stability, local vol and barriers.
 
 Every number published in the README is produced by ``run_study`` and written to
 ``results/<snapshot>/`` by ``scripts/run_results.py``.
@@ -109,7 +109,7 @@ def fit_table(snap: PreparedSnapshot, cal: Calibration) -> pd.DataFrame:
 
 
 def arbitrage_table(snap: PreparedSnapshot, cal: Calibration) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Butterfly (Durrleman g and an independent price-convexity check) and calendar audits.
+    """Butterfly (Durrleman g and an independent price-convexity check) and calendar checks.
 
     All checks run on k in [-1.5, 1.5] (3001 points). Each violation is
     classified as inside the quoted range (``supported``) or outside it
@@ -142,7 +142,7 @@ def arbitrage_table(snap: PreparedSnapshot, cal: Calibration) -> tuple[pd.DataFr
 
 
 def ssvi_surface_check(fit: SSVIFit, t_max: float, n_t: int = 400) -> dict[str, float]:
-    """Continuous-in-time audit of the SSVI surface on (0, t_max]: min g, min dw/dt, min local variance."""
+    """Continuous-in-time check of the SSVI surface on (0, t_max]: min g, min dw/dt, min local variance."""
     theta = fit.theta_curve()
     k = np.linspace(-1.5, 1.5, 601)
     g_min, dwdt_min, lv_min = np.inf, np.inf, np.inf

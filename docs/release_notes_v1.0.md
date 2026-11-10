@@ -1,6 +1,6 @@
 # v1.0 — release notes
 
-Complete rebuild of the v0 pipeline (commit `3519491`) after the audit in `AUDIT.md`.
+Complete rebuild of the v0 pipeline (commit `3519491`).
 
 ## Data
 * Calibration on two-sided mid quotes only; chains without quotes (market closed) are rejected (`StaleQuotesError`). v0 used stale last-trade prices for 100% of its points.
@@ -11,7 +11,7 @@ Complete rebuild of the v0 pipeline (commit `3519491`) after the audit in `AUDIT
 ## Models
 * Raw SVI with quasi-explicit starts; constrained SVI with Durrleman g(k) >= 0, Lee's bound b(1 ± ρ) <= 2 (v0 used 4/T, never active) and no calendar crossing; penalty continuation + SLSQP.
 * SSVI with power-law φ, θ pinned to market ATM total variance, γ <= 1/2 and the exact Theorem 4.2 bound on η: free of static arbitrage at every maturity.
-* Arbitrage audit split between quoted and extrapolated strikes; independent price-convexity check.
+* Arbitrage checks split between quoted and extrapolated strikes; independent price-convexity check.
 * New: Dupire local vol from SSVI (σ²_loc = ∂_T w / g), Monte-Carlo barrier pricer with Brownian-bridge monitoring and SPY cash dividends; Reiner-Rubinstein closed forms cross-checked against QuantLib.
 
 ## Engineering

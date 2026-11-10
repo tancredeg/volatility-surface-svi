@@ -8,7 +8,7 @@
 
 ## Real snapshot (`snapshots/spy_20260603.json`)
 
-* **Underlying:** SPY (SPDR S&P 500 ETF Trust), listed options, PM-settled.
+* **Underlying:** SPY (SPDR S&P 500 ETF Trust), listed American-style options, physically settled; expiring series stop trading at the 16:00 New York close.
 * **Expiries:** 2026-07-02, 2026-07-31, 2026-08-31, 2026-11-30 (29 to 180 days).
 * **Valuation time:** 2026-06-03 14:35:53 UTC, the latest `lastTradeDate` in the chain. Yahoo quotes are delayed, so the true quote time is uncertain by 15-20 minutes (effect on T below 0.1% at 29 days).
 * **Time to expiry:** ACT/365 from the valuation time to 16:00 America/New_York on the expiry date.
@@ -16,7 +16,7 @@
 * **Dividends (barrier pricer only):** SPY cash distributions with ex-dates 2026-06-18 (USD 1.903516) and 2026-09-18 (USD 1.888834), from the SSGA 2026 SPDR distribution schedule.
 * **Forwards:** read from the quotes by put-call parity, F = median over near-the-money strikes of K + (C - P)/D. Spot, rate and dividend yield therefore do not enter the implied vols.
 
-A second chain downloaded on 2026-06-04 before the US open (98.5% of rows with bid = ask = 0, i.e. only stale last-trade prices) is the one the v0 code used; it is now rejected by design (`StaleQuotesError`). See `AUDIT.md`.
+A second chain downloaded on 2026-06-04 before the US open (98.5% of rows with bid = ask = 0, i.e. only stale last-trade prices) is rejected by design (`StaleQuotesError`).
 
 ## Cleaning (applied per expiry, `volsurf.data.prepare_snapshot`)
 

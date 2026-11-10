@@ -1,4 +1,4 @@
-"""Static-arbitrage audit of calibrated slices: butterfly and calendar checks.
+"""Static-arbitrage checks of calibrated slices: butterfly and calendar.
 
 Butterfly (one slice): Durrleman's g(k) >= 0 for all k (Gatheral & Jacquier
 2014, Lemma 2.2), cross-checked independently by the convexity of Black-76

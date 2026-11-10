@@ -4,7 +4,7 @@
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-**Calibrates the implied volatility surface of SPY options (raw SVI, SVI with static no-arbitrage constraints, and SSVI), audits it for butterfly and calendar arbitrage, then derives Dupire local volatility from the arbitrage-free SSVI surface to measure how much a flat-volatility desk misprices barrier options.**
+**Calibrates the implied volatility surface of SPY options (raw SVI, SVI with static no-arbitrage constraints, and SSVI), checks it for butterfly and calendar arbitrage, then derives Dupire local volatility from the arbitrage-free SSVI surface to measure how much a flat-volatility desk misprices barrier options.**
 
 Data: one frozen snapshot of listed SPY options on 2026-06-03 (4 expiries, 29 to 180 days, 1,215 quotes), Yahoo Finance.
 
@@ -34,7 +34,7 @@ Data: one frozen snapshot of listed SPY options on 2026-06-03 (4 expiries, 29 to
 ![Barrier prices under local vol and flat vol](figures/real/barrier.png)
 
 <details>
-<summary><b>Arbitrage audit</b></summary>
+<summary><b>Arbitrage checks</b></summary>
 
 <!-- BEGIN:arbitrage-table -->
 | Model | Slices with g(k) < 0 | of which inside quoted range | Min g(k) | Negative-density points (price check) | Calendar crossings: quoted / extrapolated (grid points) |
@@ -144,20 +144,18 @@ src/volsurf/
   iv.py         Black-76 prices, vega, delta, vectorised implied vol
   svi.py        raw SVI, Durrleman g, unconstrained and constrained calibration
   ssvi.py       SSVI with power-law phi, Theorem 4.1/4.2 conditions, theta curve, calibration
-  arbitrage.py  butterfly and calendar audits (g, price convexity, crossings)
+  arbitrage.py  butterfly and calendar checks (g, price convexity, crossings)
   localvol.py   Dupire local variance from total implied variance
   barrier.py    Reiner-Rubinstein closed forms, local-vol Monte Carlo with Brownian bridge
   pipeline.py   end-to-end study: fit, arbitrage, timing, stability, barriers
   report.py     JSON/CSV outputs and the README tables
   plots.py      figures
-scripts/        run_results.py, make_sample.py, fetch_data.py, audit/ (v0 audit)
+scripts/        run_results.py, make_sample.py, fetch_data.py
 tests/          pytest: financial identities, known counterexamples, parameter recovery,
                 QuantLib cross-checks, regression on the sample and on the real snapshot
 data/           snapshot metadata, synthetic sample (raw quotes stay local)
 results/, figures/   outputs of scripts/run_results.py
 ```
-
-Project history: v0 of this repository published numbers computed from stale last-trade prices with an inactive butterfly constraint; the audit that led to this rebuild is in [AUDIT.md](AUDIT.md) (in French), progress notes in [PROGRESS.md](PROGRESS.md).
 
 ## References
 
@@ -177,3 +175,5 @@ Project history: v0 of this repository published numbers computed from stale las
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+Built in collaboration with Claude (Anthropic) as a coding assistant.
